@@ -15,21 +15,41 @@ using System.Windows.Shapes;
 
 namespace MatchGame
 {
+    using System.Windows.Threading;
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
+        DispatcherTimer timer = new DispatcherTimer();                                  // Vi lägger till en timer som ska börja när spelet startar, och sluta när sista djuret är matchat. 
+        int tenthsOfSecondsElapsed;                                                     // Denna variabel håller koll på hur lång tid som gått.
+        int matchesFound;                                                               // Denna variabel håller koll på hur många matchningar användaren gjort.
+
         public MainWindow()                                                             // Konstruktor, allt som ligger i konstruktorn körs så fort programmet körs. 
         {
             InitializeComponent();
+
+            timer.Interval = TimeSpan.FromSeconds(.1);
+            timer.Tick += Timer_Tick;
             SetUpGame();                                                                // Direkt vid start av programmet anropas metoden SetUpGame().
 
         }
 
-        private void SetUpGame()
+        private void Timer_Tick(object sender, EventArgs e)
         {
-            List<string> animalEmoji = new List<string>()                               // Vi skapar en lista av typen string. Vi tilldelar sedan listan 8 par av olika emojis. 
+            tenthsOfSecondsElapsed++;
+            timeTextBlock.Text = (tenthsOfSecondsElapsed / 10F).ToString("0.0s");
+            if (matchesFound == 8)
+            {
+                timer.Stop();
+                timeTextBlock.Text = timeTextBlock.Text + " - Play again?";
+            }
+        }
+
+        private void SetUpGame()                                                        // Denna metod ansvarar för att förbereda spelet. Den tilldelar varje textBlock en emoji. 
+        {
+            List<string> animalEmoji = new List<string>()                                   // Metoden skapar en lista med 16 emojis. Med hälp av en slumpgenerator slumpas en emoji fram och hamnar på ett slumpat textBlock. 
             {
                 "🐶", "🐶",
                 "🐵", "🐵",
@@ -41,17 +61,23 @@ namespace MatchGame
                 "🐍", "🐍",
             };
 
-            Random random = new Random();                                               // Vi skapar en slump generator. 
+            Random random = new Random();                                                   // Vi skapar en slump generator. 
 
-            foreach(TextBlock textBlock in mainGrid.Children.OfType<TextBlock>())       // För varje Textblock i Main-grid, upprepa följande...
+            foreach (TextBlock textBlock in mainGrid.Children.OfType<TextBlock>())          // För varje Textblock i Main-grid, upprepa följande...
             {
-                int index = random.Next(animalEmoji.Count);                             // Hitta ett slumpat nummer mellan 0 och antalet emojis som är kvar i listan och ge "index" detta värde. 
-                string nextEmoji = animalEmoji[index];                                  // Använd det utvalda slumpade värdet i "index" för att få fram en slumpad emoji från listan. Lagra den slumpade emojin i "nextEmoji". 
-                textBlock.Text = nextEmoji;                                             // Uppdatera TextBlock med den slumpade emojin.
-                animalEmoji.RemoveAt(index);                                            // Ta bort den slumpade emojin från listan "animalEmoji". 
+                if (textBlock.Name != "timeTextBlock")                                      // Vi lägger till en IF-sats i foreach-loopen som går igenom listan med alla emojis, annars får vi OutOfRange Exception pga av timer-textBlock. (17 textBlock, bara 16 emojis). 
+                {
+                    textBlock.Visibility = Visibility.Visible;
+                    int index = random.Next(animalEmoji.Count);                             // Hitta ett slumpat nummer mellan 0 och antalet emojis som är kvar i listan och ge "index" detta värde. 
+                    string nextEmoji = animalEmoji[index];                                  // Använd det utvalda slumpade värdet i "index" för att få fram en slumpad emoji från listan. Lagra den slumpade emojin i "nextEmoji". 
+                    textBlock.Text = nextEmoji;                                             // Uppdatera TextBlock med den slumpade emojin.
+                    animalEmoji.RemoveAt(index);                                            // Ta bort den slumpade emojin från listan "animalEmoji". 
+                }
             }
 
-
+            timer.Start();                                                                  // Timern startar direkt när programmet körs, eftersom anropet ligger i SetUpGame(). 
+            tenthsOfSecondsElapsed = 0;                                                     // Vi anger att timern ska börja på 0 sekunder, och att 0 matchningar är funna vid start. 
+            matchesFound = 0;                                                               // Eftersom detta ligger här, så startas timern om efter varje runda. 
 
         }
 
@@ -69,8 +95,10 @@ namespace MatchGame
             }
             else if (textBlock.Text == lastTextBlockClicked.Text)                       // Programmet kontrollerar om den första emojin användaren klickade på är samma som den emoji användaren nyss klickade på..     (MATCHNING)
             {
+                matchesFound++;                                                         // Vid varje matchning av emojis så ökar värdet på "matchesFound" med 1. 
                 textBlock.Visibility = Visibility.Hidden;                               // Sätt den senaste klickade emojin till osynlig (och oklickbar).
                 findingMatch = false;                                                   // Eftersom vi nu har hittat en matchning ska vår bool återgå till false, så att programmet i nästa varv går in i IF-satsen ovan. 
+                
             }
             else                                                                        // ANNARS om användaren klickar på en emoji som ej matchar den första emojin...
             {
@@ -79,6 +107,14 @@ namespace MatchGame
             }
 
 
+        }
+
+        private void TimeTextBlock_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (matchesFound == 8)                                                      // OM användaren har hittat 8 matchningar... 
+            {
+                SetUpGame();                                                            // Så starar spelet om (och timern startar om).
+            }
         }
     }
 }
